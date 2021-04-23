@@ -1,9 +1,39 @@
 ﻿using System;
+using System.Collections.Generic;
+using System.Linq;
 
 namespace Test
 {
 	class Program
 	{
+		public static IEnumerable<dynamic> Range(dynamic start, dynamic stop, dynamic step)
+		{
+			dynamic i = start;
+
+			while ((i < stop && step >= 0) || (i > stop && step <= 0))
+			{
+				yield return i;
+
+				i += step;
+			}
+		}
+
+		public static IEnumerable<dynamic> Range(dynamic start, dynamic stop)
+		{
+			foreach(dynamic i in Range(start, stop, 1))
+			{
+				yield return i;
+			}
+		}
+
+		public static IEnumerable<dynamic> Range(dynamic stop)
+		{
+			foreach (dynamic i in Range(0, stop))
+			{
+				yield return i;
+			}
+		}
+
 		public static dynamic Abs(dynamic n)
 		{
 			if (n < 0)
@@ -45,7 +75,7 @@ namespace Test
 			}
 		}
 
-		public static void Print(string sep = " ", string end = "\n", params dynamic[] output)
+		public static void Print(dynamic sep, dynamic end, params dynamic[] output)
 		{
 			for (int i = 0; i < output.Length; i++)
 			{
@@ -53,11 +83,22 @@ namespace Test
 			}
 		}
 
+		public static void Print(params dynamic[] output)
+		{
+			Print(" ", "\n", output);
+		}
+
 		static void Main(string[] args)
 		{
-			Print(", ", "\n", 1, 2, 3, 4);
-			Print(", ", "\n", 1, 2, 3, 4);
-			Print("; ", "\n", Abs(5.5d), Abs(-5.5f));
+			char[] a = { 'A', 'B', 'C' };
+			char[] b = { 'x', 'y', 'z' };
+
+			var c = (from i in Range(5) where i != 3
+					from j in Range(5) where j < 4
+					select new int[] { i, j }).ToArray();
+
+			foreach (var x in c)
+					Console.Write(x[0] + " " + x[1] + "\n");
 		}
 	}
 }
