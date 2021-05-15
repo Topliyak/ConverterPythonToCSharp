@@ -376,13 +376,13 @@ namespace Converter
 
 			string codeInBrackets = GetCodeFromBrackets(line);
 
-			if (FindIndexOfActStartIgnoringBrackets(codeInBrackets, ",").Length > 0 
+			if (FindIndexOfActStartIgnoringBrackets(codeInBrackets, ",").Length > 0
 				&& FindIndexOfActStartIgnoringBrackets(codeInBrackets, "for").Length == 0)
 			{
-				return WrapCodeInSquareBrackets(CreateArray(codeInBrackets));
+				return CreateArray(codeInBrackets);
 			}
 
-			return WrapCodeInSquareBrackets(ProcessLine(_trimmedLine));
+			return WrapCodeInSquareBrackets(ProcessLine(codeInBrackets));
 		}
 
 		private string CreateArray(in string line)
@@ -394,36 +394,38 @@ namespace Converter
 				result += arrayElement + ", ";
 			}
 
-			return "new dynamic[] { " + result + " }";
+			return "new dynamic[] { " + result + "}";
 		}
 
 		private List<string> SplitIgnoringBrackets(in string line)
 		{
+			string _duplicateLine = line + ",";
+
 			List<string> result = new List<string>();
 
 			string element = string.Empty;
 			int howManyBracketsOpened = 0;
 
-			for (int i = 0; i < line.Length; i++)
+			for (int i = 0; i < _duplicateLine.Length; i++)
 			{
-				if (closeBracketByOpenBracket.ContainsKey(line[i]))
+				if (closeBracketByOpenBracket.ContainsKey(_duplicateLine[i]))
 				{
 					howManyBracketsOpened++;
 				}
 
-				if (closeBracketByOpenBracket.ContainsValue(line[i]))
+				if (closeBracketByOpenBracket.ContainsValue(_duplicateLine[i]))
 				{
 					howManyBracketsOpened--;
 				}
 
-				if (line[i] == ',' && howManyBracketsOpened == 0)
+				if (_duplicateLine[i] == ',' && howManyBracketsOpened == 0)
 				{
 					result.Add(ProcessLine(element));
 					element = string.Empty;
 					continue;
 				}
 
-				element += line[i];
+				element += _duplicateLine[i];
 			}
 
 			return result;
@@ -612,10 +614,12 @@ namespace Converter
 		/// <returns>Returns array of indexes in order like in line</returns>
 		private static int[] FindIndexOfActStartIgnoringBrackets(in string line, string act)
 		{
-			Dictionary<char, int> howManyBracketsOpened = new Dictionary<char, int>();
-			howManyBracketsOpened.Add('(', 0);
-			howManyBracketsOpened.Add('[', 0);
-			howManyBracketsOpened.Add('{', 0);
+			Dictionary<char, int> howManyBracketsOpened = new Dictionary<char, int>
+			{
+				{'(', 0 },
+				{'[', 0 },
+				{'{', 0 },
+			};
 
 			bool findOnlySeparatedByWhiteSpace = false;
 
