@@ -37,6 +37,7 @@ namespace Converter
 			{"True", "true" },
 			{"False", "false" },
 			{"None", "null" },
+			{"self", "this" },
 		};
 
 		private delegate string ProcessAct(string left, string right, string act, in List<string> variables);
@@ -45,61 +46,66 @@ namespace Converter
 		private static List<char> whiteSpaces = new List<char>(new char[] { ' ', '\n', '\t' });
 
 		private static string[][] prioritisedActs = {
-									new string[] { "=", "+=", "-=", "*=", "/=", "//=", "%=" }, 
+									new string[] { "=", "+=", "-=", "*=", "/=", "//=", "%=" },
 									new string[] { "or" },
 									new string[] { "and" },
 									new string[] { "not" },
 									new string[] { "<", "<=", ">", ">=", "!=", "==" },
-									new string[] { "+", "-" }, 
-									new string[] { "*", "/", "//", "%" }, 
+									new string[] { "+", "-" },
+									new string[] { "*", "/", "//", "%" },
 									new string[] { "**" },
 								  };
-		private static ProcessAct[][] ProcessActs = {
-												new ProcessAct[] {
-																  Assignment, // =
-																  ActWithAssignment, // +=
-																  ActWithAssignment, // -=
-																  ActWithAssignment, // *=
-																  ActWithAssignment, // /=
-																  ActWithAssignment, // //=
-																  ActWithAssignment, // %=
-																 },
-												new ProcessAct[] {
-																  Disjuction, // or
-																 },
-												new ProcessAct[] {
-																  Conjuction, // and
-																 },
-												new ProcessAct[] {
-																  Inversion, // not
-																 },
-												new ProcessAct[] {
-																  JoinPartsByActWhichSameInPythonAndCS, // <
-																  JoinPartsByActWhichSameInPythonAndCS, // <=
-																  JoinPartsByActWhichSameInPythonAndCS, // >
-																  JoinPartsByActWhichSameInPythonAndCS, // >=
-																  JoinPartsByActWhichSameInPythonAndCS, // !=
-																  JoinPartsByActWhichSameInPythonAndCS, // ==
-																 },
-												new ProcessAct[] {
-																  JoinPartsByActWhichSameInPythonAndCS, // +
-																  JoinPartsByActWhichSameInPythonAndCS, // -
-																 },
-												new ProcessAct[] {
-																  JoinPartsByActWhichSameInPythonAndCS, // *
-																  JoinPartsByActWhichSameInPythonAndCS, // /
-																  Div, // //
-																  Mod, // %
-																 },
-												new ProcessAct[] {
-																  Pow, // **
-																 },
-											};
+		private static Dictionary<string, ProcessAct> functionsWhichProcessArithmeticAndLogicalActs = new Dictionary<string, ProcessAct>
+		{
+			{"=", Assignment },
+			{"+=", ActWithAssignment },
+			{"-=", ActWithAssignment },
+			{"*=", ActWithAssignment },
+			{"/=", ActWithAssignment },
+			{"//=", ActWithAssignment },
+			{"%=", ActWithAssignment },
+			{"or", Disjuction },
+			{"and", Conjuction },
+			{"not", Inversion },
+			{"<", JoinPartsByActWhichSameInPythonAndCS },
+			{"<=", JoinPartsByActWhichSameInPythonAndCS },
+			{">", JoinPartsByActWhichSameInPythonAndCS },
+			{">=", JoinPartsByActWhichSameInPythonAndCS },
+			{"!=", JoinPartsByActWhichSameInPythonAndCS },
+			{"==", JoinPartsByActWhichSameInPythonAndCS },
+			{"+", JoinPartsByActWhichSameInPythonAndCS },
+			{"-", JoinPartsByActWhichSameInPythonAndCS },
+			{"*", JoinPartsByActWhichSameInPythonAndCS },
+			{"/", JoinPartsByActWhichSameInPythonAndCS },
+			{"//", Div },
+			{"%", Mod },
+			{"**", Pow },
+		};
 
-		private static string[] cSharpKeywordsWithWhichLineMustntBeClosed = { "if", "foreach", "while", };
+		private static string[] cSharpKeywordsWithWhichLineMustntBeClosed = { "if", "foreach", "while", "class", "def" };
 
-		private static string[] keywords = { "for", "if", "while", "in", };
-		private static ProcessKeyword[] processKeywords = { ProcessFor, ProcessIf, ProcessWhile, ProcessIn, };
+		private static Dictionary<string, ProcessKeyword> functionsWhichProcessKeywords = new Dictionary<string, ProcessKeyword>
+		{
+			{"def", ProcessDef },
+			{"for", ProcessFor },
+			{"if", ProcessIf },
+			{"while", ProcessWhile },
+			{"in", ProcessIn },
+		};
+
+		private static Dictionary<char, char> openBracketByCloseBracket = new Dictionary<char, char>
+		{
+			{ ')', '(' },
+			{ ']', '[' },
+			{ '}', '{' },
+		};
+		
+		private static Dictionary<char, char> closeBracketByOpenBracket = new Dictionary<char, char>
+		{
+			{ '(', ')' },
+			{ '[', ']' },
+			{ '{', '}' },
+		};
 
 		private string ProcessLine(in string pythonLine)
 		{
@@ -296,14 +302,11 @@ namespace Converter
 
 		private string ProcessKeywords(in string line)
 		{
-			int indexOfKeywordInKeywordsArray = -1;
 			int indexOfKeywordInLine = -1;
 			string keyword = string.Empty;
 
-			for (int i = 0; i < keywords.Length; i++)
+			foreach (string currentKeyword in functionsWhichProcessKeywords.Keys)
 			{
-				string currentKeyword = keywords[i];
-
 				int[] _intArray = FindIndexOfActStartIgnoringBrackets(line, currentKeyword);
 				int indexOfCurrentKeyword = (_intArray.Length == 0) ? -1 : _intArray[_intArray.Length - 1];
 
@@ -312,7 +315,6 @@ namespace Converter
 					continue;
 				}
 
-				indexOfKeywordInKeywordsArray = i;
 				indexOfKeywordInLine = indexOfCurrentKeyword;
 				keyword = currentKeyword;
 
@@ -340,7 +342,7 @@ namespace Converter
 			left = left.Trim();
 			right = right.Trim();
 
-			return processKeywords[indexOfKeywordInKeywordsArray](ProcessLine(left), ProcessLine(right), bodyStack.Get().variables);
+			return functionsWhichProcessKeywords[keyword](ProcessLine(left), ProcessLine(right), bodyStack.Get().variables);
 		}
 
 		private string ProcessAroundBrackets(in string line)
@@ -365,22 +367,110 @@ namespace Converter
 
 		private string ProcessSquareBrackets(in string line)
 		{
-			string _lineDuplicate = line.Trim();
+			string _trimmedLine = line.Trim();
 
-			if (_lineDuplicate.Length > 0 && _lineDuplicate[0] == '[' && _lineDuplicate[_lineDuplicate.Length - 1] == ']')
+			if (!(_trimmedLine.Length >= 2 && _trimmedLine[0] == '[' && _trimmedLine[_trimmedLine.Length - 1] == ']'))
 			{
-				_lineDuplicate = string.Empty;
-				List<char> _charList = new List<char>(line.Trim().ToCharArray());
-
-				for (int i = 1; i < _charList.Count - 1; i++)
-				{
-					_lineDuplicate += _charList[i];
-				}
-
-				return WrapCodeInSquareBrackets(ProcessLine(_lineDuplicate));
+				return _trimmedLine;
 			}
 
-			return line.Trim();
+			string codeInBrackets = GetCodeFromBrackets(line);
+
+			if (FindIndexOfActStartIgnoringBrackets(codeInBrackets, ",").Length > 0 
+				&& FindIndexOfActStartIgnoringBrackets(codeInBrackets, "for").Length == 0)
+			{
+				return WrapCodeInSquareBrackets(CreateArray(codeInBrackets));
+			}
+
+			return WrapCodeInSquareBrackets(ProcessLine(_trimmedLine));
+		}
+
+		private string CreateArray(in string line)
+		{
+			string result = string.Empty;
+
+			foreach (string arrayElement in SplitIgnoringBrackets(line))
+			{
+				result += arrayElement + ", ";
+			}
+
+			return "new dynamic[] { " + result + " }";
+		}
+
+		private List<string> SplitIgnoringBrackets(in string line)
+		{
+			List<string> result = new List<string>();
+
+			string element = string.Empty;
+			int howManyBracketsOpened = 0;
+
+			for (int i = 0; i < line.Length; i++)
+			{
+				if (closeBracketByOpenBracket.ContainsKey(line[i]))
+				{
+					howManyBracketsOpened++;
+				}
+
+				if (closeBracketByOpenBracket.ContainsValue(line[i]))
+				{
+					howManyBracketsOpened--;
+				}
+
+				if (line[i] == ',' && howManyBracketsOpened == 0)
+				{
+					result.Add(ProcessLine(element));
+					element = string.Empty;
+					continue;
+				}
+
+				element += line[i];
+			}
+
+			return result;
+		}
+
+		private string GetCodeFromBrackets(char openBracket, char closeBracket, in string line)
+		{
+			string contentInsideBrackets = line.Trim();
+
+			if (contentInsideBrackets.Length >= 2 
+				&& contentInsideBrackets[0] == openBracket 
+				&& contentInsideBrackets[contentInsideBrackets.Length - 1] == closeBracket)
+			{
+				contentInsideBrackets = string.Empty;
+				string _trimmedLine = line.Trim();
+
+				for (int i = 1; i < _trimmedLine.Length - 1; i++)
+				{
+					contentInsideBrackets += _trimmedLine[i];
+				}
+
+				return contentInsideBrackets;
+			}
+
+			return line;
+		}
+
+		private string GetCodeFromBrackets(in string line)
+		{
+			string contentInsideBrackets = line.Trim();
+
+			if (contentInsideBrackets.Length >= 2 
+				&& closeBracketByOpenBracket.ContainsKey(contentInsideBrackets[0])
+				&& contentInsideBrackets[contentInsideBrackets.Length - 1] == closeBracketByOpenBracket[contentInsideBrackets[0]])
+			{
+				contentInsideBrackets = string.Empty;
+				string _trimmedLine = line.Trim();
+
+				for (int i = 1; i < _trimmedLine.Length - 1; i++)
+				{
+					contentInsideBrackets += _trimmedLine[i];
+				}
+
+				return contentInsideBrackets;
+			}
+
+			return line;
 		}
 
 		private static string WrapCodeInSquareBrackets(in string line)
@@ -400,7 +490,7 @@ namespace Converter
 
 			for (int actGroupIndex = 0; actGroupIndex < prioritisedActs.Length; actGroupIndex++)
 			{
-				int indexOfActFromCurrentActsGroupInLine = -1;
+				int indexOfActInLine = -1;
 				string actFromCurrentGroup = string.Empty;
 				int indexOfActInGroup = -1;
 
@@ -409,32 +499,32 @@ namespace Converter
 					string act = prioritisedActs[actGroupIndex][actIndex];
 
 					int[] _intArray = FindIndexOfActStartIgnoringBrackets(in line, act);
-					int indexOfCurrentAct = (_intArray.Length == 0) ? -1 : _intArray[_intArray.Length - 1];
+					int indexOfCurrentActInLine = (_intArray.Length == 0) ? -1 : _intArray[_intArray.Length - 1];
 
-					if (indexOfCurrentAct == -1)
+					if (indexOfCurrentActInLine == -1)
 					{
 						continue;
 					}
 
-					if (indexOfCurrentAct > indexOfActFromCurrentActsGroupInLine)
+					if (indexOfCurrentActInLine > indexOfActInLine)
 					{
-						indexOfActFromCurrentActsGroupInLine = indexOfCurrentAct;
+						indexOfActInLine = indexOfCurrentActInLine;
 						actFromCurrentGroup = act;
 						indexOfActInGroup = actIndex;
 					}
 				}
 
-				if (indexOfActFromCurrentActsGroupInLine == -1) // Line doesn't contain act from current act group
+				if (indexOfActInLine == -1) // Line doesn't contain act from current act group
 				{
 					continue;
 				}
 
-				for (int i = 0; i < indexOfActFromCurrentActsGroupInLine; i++)
+				for (int i = 0; i < indexOfActInLine; i++)
 				{
 					leftPart += line[i];
 				}
 
-				for (int i = indexOfActFromCurrentActsGroupInLine + actFromCurrentGroup.Length; i < line.Length; i++)
+				for (int i = indexOfActInLine + actFromCurrentGroup.Length; i < line.Length; i++)
 				{
 					rightPart += line[i];
 				}
@@ -442,7 +532,7 @@ namespace Converter
 				leftPart = leftPart.Trim();
 				rightPart = rightPart.Trim();
 
-				return ProcessActs[actGroupIndex][indexOfActInGroup](ProcessLine(leftPart), ProcessLine(rightPart),
+				return functionsWhichProcessArithmeticAndLogicalActs[actFromCurrentGroup](ProcessLine(leftPart), ProcessLine(rightPart),
 																				actFromCurrentGroup, in bodyStack.Get().variables);
 			}
 
@@ -522,11 +612,6 @@ namespace Converter
 		/// <returns>Returns array of indexes in order like in line</returns>
 		private static int[] FindIndexOfActStartIgnoringBrackets(in string line, string act)
 		{
-			Dictionary<char, char> openBracketByCloseBracket = new Dictionary<char, char>();
-			openBracketByCloseBracket.Add(')', '(');
-			openBracketByCloseBracket.Add(']', '[');
-			openBracketByCloseBracket.Add('}', '{');
-
 			Dictionary<char, int> howManyBracketsOpened = new Dictionary<char, int>();
 			howManyBracketsOpened.Add('(', 0);
 			howManyBracketsOpened.Add('[', 0);
@@ -690,6 +775,11 @@ namespace Converter
 			return isEqual;
 		}
 
+		private static string ProcessDef(string _a, string right, in List<string> _b)
+		{
+			return _a + " def " + right;
+		}
+
 		private static string ProcessIn(string left, string right, in List<string> variables)
 		{
 			if (left.Split(' ').Length > 1)
@@ -786,7 +876,7 @@ namespace Converter
 				}
 			}
 
-			return Assignment(left, ProcessActs[groupOfActIndex][actInGroupIndex](left, right, actWithoutAssignment, variables), 
+			return Assignment(left, functionsWhichProcessArithmeticAndLogicalActs[actWithoutAssignment](left, right, actWithoutAssignment, variables), 
 																								actWithoutAssignment, variables);
 		}
 
