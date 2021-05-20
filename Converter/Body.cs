@@ -6,18 +6,21 @@ namespace Converter
 {
 	public class Body
 	{
+		public string name = string.Empty;
 		public List<string> variables = new List<string>();
 		private bool hasOwnVariables = true;
 		public int howManySpaces;
 		private string code = string.Empty;
 
-		public Body(int howManySpaces)
+		public Body(string name, int howManySpaces)
 		{
+			this.name = name;
 			this.howManySpaces = howManySpaces;
 		}
 
-		public Body(int howManySpaces, List<string> variables)
+		public Body(string name, int howManySpaces, List<string> variables)
 		{
+			this.name = name;
 			this.howManySpaces = howManySpaces;
 			this.variables = variables;
 			hasOwnVariables = false;
