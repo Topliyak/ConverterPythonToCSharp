@@ -4,6 +4,15 @@ using System.Collections.Generic;
 
 namespace Converter
 {
+	public enum ConstructionType
+	{
+		Loop,
+		Condition,
+		Function,
+		Class,
+		Default,
+	}
+
 	public class Converter
 	{
 		private System.IO.StreamReader pythonFile;
@@ -11,18 +20,24 @@ namespace Converter
 
 		int _lineNumber;
 
-		private int minSpacesAtStartLine = 4;
-		private Body currentBody;
+		private static string lastConvertedLine = string.Empty;
+
+		private static int minSpacesAtStartLine = 4;
 		private static Stack<Body> bodyStack = new Stack<Body>();
 
-		private enum ConstructionType
+		private static List<string> classes = new List<string>();
+		private static List<string> functions = new List<string>();
+
+		private static Body namespaceBody = new Body("Program", "namespace Program", ConstructionType.Default, 0);
+		private static Body mainClassBody = new Body("Program", "public class Program", ConstructionType.Class, 0, 4);
+		private static Body entranceFunctionBody = new Body("Main", "static void Main(string[] args)", ConstructionType.Function, 0, 4);
+
+		private static List<string> libraries = new List<string>
 		{
-			Loop,
-			Condition,
-			Function,
-			Class,
-			Default,
-		}
+			"System",
+			"System.Linq",
+			"System.Collections.Generic",
+		};
 
 		private ConstructionType typeOfLastConstruction;
 		private string nameOfLastConstruction;
@@ -93,7 +108,7 @@ namespace Converter
 			{"**", Pow },
 		};
 
-		private static string[] cSharpKeywordsWithWhichLineMustntBeClosed = { "if", "foreach", "while", "class", "def" };
+		private static string[] cSharpKeywordsWithWhichLineMustntBeWrited = { "if", "for", "while", "class", "def" };
 
 		private static Dictionary<string, ProcessKeyword> functionsWhichProcessKeywords = new Dictionary<string, ProcessKeyword>
 		{
@@ -105,14 +120,7 @@ namespace Converter
 			{"in", ProcessIn },
 		};
 
-		private static Dictionary<char, char> openBracketByCloseBracket = new Dictionary<char, char>
-		{
-			{ ')', '(' },
-			{ ']', '[' },
-			{ '}', '{' },
-		};
-
-		private static Dictionary<char, char> closeBracketByOpenBracket = new Dictionary<char, char>
+		private static Dictionary<char, char> OpenCloseBracketsPairs = new Dictionary<char, char>
 		{
 			{ '(', ')' },
 			{ '[', ']' },
@@ -131,6 +139,8 @@ namespace Converter
 			line = ChangePythonKeywordsToCSharpKeywords(line);
 			line = ProcessKeywords(line);
 			line = ProcessArithmeticAndLogicalActs(line);
+			line = ProcessDots(line);
+			line = ProcessFunctionCalling(line);
 			line = ProcessSquareBrackets(line);
 			line = ProcessAroundBrackets(line);
 
@@ -142,7 +152,11 @@ namespace Converter
 			pythonFile = new System.IO.StreamReader(pathToPythonModule);
 			cSharpFile = new System.IO.StreamWriter(pathToCSharpFile);
 
-			bodyStack.Add(new Body(string.Empty, 0));
+			bodyStack.Add(namespaceBody);
+			bodyStack.Add(mainClassBody);
+			bodyStack.Add(entranceFunctionBody);
+			mainClassBody.parentBody = namespaceBody;
+			entranceFunctionBody.parentBody = mainClassBody;
 
 			string line;
 			string newLine;
@@ -163,14 +177,15 @@ namespace Converter
 				} while (!allBracketsClosed && newLine != null);
 
 				UpdateBodyStack(line);
+
 				typeOfLastConstruction = DefineWhichTypeOfConstructionInLine(line);
 				nameOfLastConstruction = DefineConstructionName(line, typeOfLastConstruction);
 
-				string _convertedLine = ProcessLine(line);
+				ClassesListUpdate();
+				FunctionsListUpdate();
 
-				currentBody = bodyStack.Get();
-				currentBody.AddCode(CloseLine(_convertedLine));
-
+				lastConvertedLine = ProcessLine(line);
+				PutLineToBody(line);
 
 			} while (newLine != null);
 
@@ -179,8 +194,9 @@ namespace Converter
 				CloseBody();
 			}
 
-			currentBody = bodyStack.Get();
-			Console.Write(currentBody.GetBodyText(0, minSpacesAtStartLine));
+			string finallCode = GetResultProgram();
+
+			Console.WriteLine(finallCode);
 
 			pythonFile.Close();
 			cSharpFile.Close();
@@ -188,35 +204,66 @@ namespace Converter
 
 		private void TestMethod() // For Debug methods
 		{
-			string s = "\\=llpfkqkf kfkfkorqfk or ok\\\\=fwqflpqlfplf\\\\=";
+			string s = @"dakod, aksd, askf(dadk, aokfs, dad'('dado, asfk), kad(')'), kafassa";
 
-			for (int i = 0; i < s.Length; i++)
-			{
-				Console.WriteLine($"{i}) {s[i]}");
-			}
+			var d = GetOpenCloseBracketsAndQuotesPairs(s);
 
-			foreach (var i in FindIndexOfActStartIgnoringBrackets(s, "\\\\="))
+			foreach (var i in d.Keys)
 			{
-				Console.Write(i + " ");
+				Console.WriteLine(i + " " + d[i]);
 			}
 		}
 
-		private static string CloseLine(in string line)
+		private void ClassesListUpdate()
 		{
-			if (line.Trim() == string.Empty)
+			if (typeOfLastConstruction == ConstructionType.Class && !classes.Contains(nameOfLastConstruction))
 			{
-				return "\n";
+				classes.Add(nameOfLastConstruction);
+			}
+		}
+
+		private void FunctionsListUpdate()
+		{
+			if (typeOfLastConstruction == ConstructionType.Function &&
+				bodyStack.Get().parentBody == mainClassBody)
+			{
+				functions.Add(nameOfLastConstruction);
+			}
+		}
+
+		private static string GetResultProgram()
+		{
+			string result = bodyStack.Get().GetBodyText(0, minSpacesAtStartLine);
+
+			result = "\n" + result;
+
+			for (int i = libraries.Count - 1; i >= 0; i--)
+			{
+				result = $"using {libraries[i]};\n" + result;
 			}
 
-			foreach (string keyword in cSharpKeywordsWithWhichLineMustntBeClosed)
+			return result;
+		}
+
+		private static void PutLineToBody(in string pythonLine)
+		{
+			if (lastConvertedLine.Trim() == string.Empty)
 			{
-				if (FindIndexOfActStartIgnoringBrackets(line, keyword).Length != 0)
+				bodyStack.Get().AddCode("\n");
+				return;
+			}
+
+			foreach (string keyword in cSharpKeywordsWithWhichLineMustntBeWrited)
+			{
+				if (FindIndexOfActStartIgnoringBrackets(pythonLine, keyword).Length != 0)
 				{
-					return line.TrimEnd('\n') + "\n";
+					bodyStack.Get().AddCode(string.Empty);
+					return;
 				}
 			}
 
-			return line.TrimEnd('\n') + ";\n";
+			bodyStack.Get().AddCode(lastConvertedLine.TrimEnd('\n') + ";\n");
+			return;
 		}
 
 		private bool CheckAllBracketsClosed(in string line)
@@ -362,7 +409,10 @@ namespace Converter
 		{
 			string _lineDuplicate = line.Trim();
 
-			if (_lineDuplicate.Length > 0 && _lineDuplicate[0] == '(' && _lineDuplicate[_lineDuplicate.Length - 1] == ')')
+			Dictionary<int, int> openCloseBrackketsPairs = GetOpenCloseBracketsAndQuotesPairs(_lineDuplicate);
+
+			if (line.Length > 0 && _lineDuplicate[0] == '[' 
+				&& openCloseBrackketsPairs.ContainsKey(0) && openCloseBrackketsPairs[0] == _lineDuplicate.Length - 1)
 			{
 				_lineDuplicate = string.Empty;
 				List<char> _charList = new List<char>(line.Trim().ToCharArray());
@@ -382,7 +432,9 @@ namespace Converter
 		{
 			string _trimmedLine = line.Trim();
 
-			if (!(_trimmedLine.Length >= 2 && _trimmedLine[0] == '[' && _trimmedLine[_trimmedLine.Length - 1] == ']'))
+			Dictionary<int, int> openCloseBracketsPairs = GetOpenCloseBracketsAndQuotesPairs(_trimmedLine);
+
+			if (!(line.Length != 0 && line[0] == '[' && openCloseBracketsPairs.ContainsKey(0) && openCloseBracketsPairs[0] == _trimmedLine.Length - 1))
 			{
 				return _trimmedLine;
 			}
@@ -402,7 +454,7 @@ namespace Converter
 		{
 			string result = string.Empty;
 
-			foreach (string arrayElement in SplitIgnoringBrackets(line))
+			foreach (string arrayElement in SplitIgnoringBrackets(line, ','))
 			{
 				result += ProcessLine(arrayElement) + ", ";
 			}
@@ -410,28 +462,85 @@ namespace Converter
 			return "new List<dynamic> { " + result + "}";
 		}
 
-		private static List<string> SplitIgnoringBrackets(in string line)
+		private static Dictionary<int, int> GetOpenCloseBracketsAndQuotesPairs(in string line)
 		{
-			string _duplicateLine = line + ",";
+			Dictionary<int, int> openCloseBracketsPairs = new Dictionary<int, int>();
+			Stack<int> openBracketsIndexesStack = new Stack<int>();
+
+			bool insideString = false;
+			bool insideChar = false;
+
+			for (int i = 0; i < line.Length; i++)
+			{
+				char letter = line[i];
+
+				if (letter == '\"' && !insideString && !insideChar)
+				{
+					insideString = true;
+					openBracketsIndexesStack.Add(i);
+				}
+				else if (letter == '\"' && insideString && (i - 1 >= 0 && line[i - 1] != '\\' || i - 1 < 0))
+				{
+					insideString = false;
+					openCloseBracketsPairs.Add(openBracketsIndexesStack.Get(), i);
+					openBracketsIndexesStack.Delete();
+				}
+				else if (letter == '\'' && !insideString && !insideChar)
+				{
+					insideChar = true;
+					openBracketsIndexesStack.Add(i);
+				}
+				else if (letter == '\'' && insideChar && (i - 1 >= 0 && line[i - 1] != '\\' || i - 1 < 0))
+				{
+					insideChar = false;
+					openCloseBracketsPairs.Add(openBracketsIndexesStack.Get(), i);
+					openBracketsIndexesStack.Delete();
+				}
+				else if (!insideChar && !insideString && OpenCloseBracketsPairs.ContainsKey(letter))
+				{
+					openBracketsIndexesStack.Add(i);
+				}
+				else if (!insideChar && !insideString && OpenCloseBracketsPairs.ContainsValue(letter))
+				{
+					openCloseBracketsPairs.Add(openBracketsIndexesStack.Get(), i);
+					openBracketsIndexesStack.Delete();
+				}
+			}
+
+			return openCloseBracketsPairs;
+		}
+
+		private static bool IsInsideBrackets(int index, in string line, Dictionary<int, int> openCloseBracketsPairs = null)
+		{
+			if (openCloseBracketsPairs == null)
+			{
+				openCloseBracketsPairs = GetOpenCloseBracketsAndQuotesPairs(line);
+			}
+
+			foreach (int i in openCloseBracketsPairs.Keys)
+			{
+				if (index > i && index < openCloseBracketsPairs[i])
+				{
+					return true;
+				}
+			}
+
+			return false;
+		}
+
+		private static List<string> SplitIgnoringBrackets(in string line, char separator)
+		{
+			string _duplicateLine = line + separator;
+
+			Dictionary<int, int> openCloseBracketsPairs = GetOpenCloseBracketsAndQuotesPairs(line);
 
 			List<string> result = new List<string>();
 
 			string element = string.Empty;
-			int howManyBracketsOpened = 0;
 
 			for (int i = 0; i < _duplicateLine.Length; i++)
 			{
-				if (closeBracketByOpenBracket.ContainsKey(_duplicateLine[i]))
-				{
-					howManyBracketsOpened++;
-				}
-
-				if (closeBracketByOpenBracket.ContainsValue(_duplicateLine[i]))
-				{
-					howManyBracketsOpened--;
-				}
-
-				if (_duplicateLine[i] == ',' && howManyBracketsOpened == 0)
+				if (_duplicateLine[i] == separator && element.Length != 0 && !IsInsideBrackets(i, _duplicateLine, openCloseBracketsPairs))
 				{
 					result.Add(element);
 					element = string.Empty;
@@ -471,8 +580,8 @@ namespace Converter
 			string contentInsideBrackets = line.Trim();
 
 			if (contentInsideBrackets.Length >= 2
-				&& closeBracketByOpenBracket.ContainsKey(contentInsideBrackets[0])
-				&& contentInsideBrackets[contentInsideBrackets.Length - 1] == closeBracketByOpenBracket[contentInsideBrackets[0]])
+				&& OpenCloseBracketsPairs.ContainsKey(contentInsideBrackets[0])
+				&& contentInsideBrackets[contentInsideBrackets.Length - 1] == OpenCloseBracketsPairs[contentInsideBrackets[0]])
 			{
 				contentInsideBrackets = string.Empty;
 				string _trimmedLine = line.Trim();
@@ -554,7 +663,7 @@ namespace Converter
 			return line;
 		}
 
-		private static ConstructionType DefineWhichTypeOfConstructionInLine(in string line)
+		public static ConstructionType DefineWhichTypeOfConstructionInLine(in string line)
 		{
 			foreach (ConstructionType constructionType in ConstructionTypesAndTheirKeywords.Keys)
 			{
@@ -643,34 +752,23 @@ namespace Converter
 				return;
 			}
 
-			int howManySpacesInCurrentLine = 0;
-
-			foreach (char i in line)
-			{
-				if (i == ' ')
-				{
-					howManySpacesInCurrentLine++;
-				}
-				else if (i == '\t')
-				{
-					howManySpacesInCurrentLine += 4;
-				}
-				else
-				{
-					break;
-				}
-			}
+			int howManySpacesInCurrentLine = GetNumberOfSpacesInLineStart(line);
 
 			if (howManySpacesInCurrentLine > bodyStack.Get().howManySpaces)
 			{
+				Body newBody;
+
 				if (typeOfLastConstruction == ConstructionType.Condition || typeOfLastConstruction == ConstructionType.Loop)
 				{
-					bodyStack.Add(new Body(nameOfLastConstruction, howManySpacesInCurrentLine, bodyStack.Get().variables));
+					newBody = new Body(null, lastConvertedLine, typeOfLastConstruction, howManySpacesInCurrentLine, bodyStack.Get().variables);
 				}
 				else
 				{
-					bodyStack.Add(new Body(nameOfLastConstruction, howManySpacesInCurrentLine));
+					newBody = new Body(nameOfLastConstruction, lastConvertedLine, typeOfLastConstruction, howManySpacesInCurrentLine);
 				}
+
+				LinkNewBodyWithParent(newBody);
+				bodyStack.Add(newBody);
 			}
 
 			while (howManySpacesInCurrentLine < bodyStack.Get().howManySpaces)
@@ -679,28 +777,70 @@ namespace Converter
 			}
 		}
 
+		private static int GetNumberOfSpacesInLineStart(in string line)
+		{
+			int result = 0;
+
+			foreach (char i in line)
+			{
+				if (i == ' ')
+				{
+					result++;
+				}
+				else if (i == '\t')
+				{
+					result += 4;
+				}
+				else
+				{
+					break;
+				}
+			}
+
+			return result;
+		}
+
+		private void LinkNewBodyWithParent(Body newBody)
+		{
+			if (newBody.constructionType == ConstructionType.Class)
+			{
+				newBody.parentBody = namespaceBody;
+			}
+			else if (newBody.constructionType == ConstructionType.Function)
+			{
+				if (bodyStack.Get().constructionType == ConstructionType.Class)
+				{
+					newBody.parentBody = bodyStack.Get();
+				}
+				else
+				{
+					newBody.parentBody = mainClassBody;
+				}
+			}
+			else
+			{
+				newBody.parentBody = bodyStack.Get();
+			}
+		}
+
 		private void CloseBody()
 		{
-			Body previous = bodyStack.Delete();
-			Body currentBody = bodyStack.Get();
+			bodyStack.Delete().ImportCodeToParent();
 
-			currentBody.AddCode(previous.GetBodyText(currentBody.howManySpaces, bodyStack.Count == 0 ? minSpacesAtStartLine : 0));
+			//Body previous = bodyStack.Delete();
+
+			//currentBody.AddCode(previous.GetBodyText(currentBody.howManySpaces, bodyStack.Count == 0 ? minSpacesAtStartLine : 0));
 		}
 
 		/// <summary>
 		/// Find act's first letter index in line 
 		/// </summary>
 		/// <returns>Returns array of indexes in order like in line</returns>
-		private static int[] FindIndexOfActStartIgnoringBrackets(in string line, string act)
+		public static int[] FindIndexOfActStartIgnoringBrackets(in string line, string act)
 		{
-			Dictionary<char, int> howManyBracketsOpened = new Dictionary<char, int>
-			{
-				{'(', 0 },
-				{'[', 0 },
-				{'{', 0 },
-			};
-
 			bool findOnlySeparatedByWhiteSpace = false;
+
+			Dictionary<int, int> openCloseBracketsPairs = GetOpenCloseBracketsAndQuotesPairs(line);
 
 			foreach (char i in act)
 			{
@@ -723,30 +863,7 @@ namespace Converter
 					continue;
 				}
 
-				if (howManyBracketsOpened.ContainsKey(line[i]))
-				{
-					howManyBracketsOpened[line[i]] += 1;
-					continue;
-				}
-
-				if (openBracketByCloseBracket.ContainsKey(line[i]))
-				{
-					howManyBracketsOpened[openBracketByCloseBracket[line[i]]] -= 1;
-					continue;
-				}
-
-				bool anyBracketIsNotClosed = false;
-
-				foreach (char bracket in howManyBracketsOpened.Keys)
-				{
-					if (howManyBracketsOpened[bracket] > 0)
-					{
-						anyBracketIsNotClosed = true;
-						break;
-					}
-				}
-
-				if (anyBracketIsNotClosed)
+				if (IsInsideBrackets(i, line, openCloseBracketsPairs))
 				{
 					continue;
 				}
@@ -769,8 +886,11 @@ namespace Converter
 
 					if (canAddIndex && findOnlySeparatedByWhiteSpace)
 					{
-						if ((i == 0 || i != 0 && !whiteSpaces.Contains(line[i - 1]))
-							|| (i + act.Length == line.Length || i + act.Length < line.Length && !whiteSpaces.Contains(line[i + act.Length])))
+						int firstLetterIndex = i;
+						int lastLetterIndex = i + act.Length - 1;
+
+						if ((firstLetterIndex != 0 && !whiteSpaces.Contains(line[firstLetterIndex - 1]))
+							|| (lastLetterIndex != line.Length - 1 && !whiteSpaces.Contains(line[lastLetterIndex + 1])))
 						{
 							howManySkip = act.Length - 1;
 							canAddIndex = false;
@@ -858,11 +978,47 @@ namespace Converter
 			return isEqual;
 		}
 
+		private static string ProcessDots(in string line)
+		{
+			return line;
+		}
+
+		private static string ProcessFunctionCalling(in string line)
+		{
+			Dictionary<int, int> openCloseBracketsAndQuotesPairs = GetOpenCloseBracketsAndQuotesPairs(line);
+
+			int openBracketIndex = 0;
+
+			if (!TryGetKeyByValue(openCloseBracketsAndQuotesPairs, line.Length - 1, ref openBracketIndex))
+			{
+				return line;
+			}
+
+			string functionName = line.Substring(0, line.Length - 2);
+
+			if (CheckDoesWordHaveSpecialSymbol(functionName))
+			{
+				return line;
+			}
+
+			if (functions.Contains(functionName))
+			{
+				return $"{mainClassBody.name}.{functionName}()";
+			}
+
+			if (classes.Contains(functionName))
+			{
+				return $"new {functionName}()";
+			}
+
+			return $"new UNFAMOUS_CLASS() /* REQUARED HAND EDITING !!! WAS CODE: {line} */";
+		}
+
 		private static string CreateFunctionParameters(in string line)
 		{
 			string result = string.Empty;
 
-			List<string> parameters = SplitIgnoringBrackets(line);
+			List<string> parameters = SplitIgnoringBrackets(line, ',');
 
 			for (int i = 0; i < parameters.Count; i++)
 			{
@@ -918,12 +1074,12 @@ namespace Converter
 
 			if (lineAsList.Count == 0)
 			{
-				return "class " + className;
+				return "public class " + className;
 			}
 
 			string parentClassName = GetCodeFromBrackets(StringFromCharList(lineAsList));
 
-			return "class " + className + ": " + parentClassName;
+			return "public class " + className + ": " + parentClassName;
 		}
 
 		private static string ProcessIn(string left, string right, in List<string> variables)
@@ -1086,6 +1242,35 @@ namespace Converter
 			}
 
 			return result;
+		}
+
+		private static bool TryGetKeyByValue(Dictionary<int, int> dictionary, int value, ref int result)
+		{
+			foreach (int key in dictionary.Keys)
+			{
+				if (dictionary[key] == value)
+				{
+					result = key;
+					return true;
+				}
+			}
+
+			return false;
+		}
+
+		private static bool CheckDoesWordHaveSpecialSymbol(string s)
+		{
+			foreach (char symbol in s)
+			{
+				bool currentSymbolIsDefaultLetter = symbol >= 'a' && symbol <= 'z' || symbol >= 'A' && symbol <= 'Z' || symbol == '_';
+
+				if (!currentSymbolIsDefaultLetter)
+				{
+					return true;
+				}
+			}
+
+			return false;
 		}
 	}
 }

@@ -7,7 +7,9 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Converter", "Converter\Conv
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "ConverterLogUI", "ConverterLogUI\ConverterLogUI.csproj", "{4B61EB79-B52A-4464-8AB1-F046839D64BE}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Test", "Test\Test.csproj", "{A9248464-00D6-4BBF-B1A1-2AFF1ACE7D59}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Test", "Test\Test.csproj", "{A9248464-00D6-4BBF-B1A1-2AFF1ACE7D59}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "TestConvertedCode", "TestConvertedCode\TestConvertedCode.csproj", "{DBEC8977-3B23-48A0-B249-389C95BFFF2C}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -27,6 +29,10 @@ Global
 		{A9248464-00D6-4BBF-B1A1-2AFF1ACE7D59}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{A9248464-00D6-4BBF-B1A1-2AFF1ACE7D59}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{A9248464-00D6-4BBF-B1A1-2AFF1ACE7D59}.Release|Any CPU.Build.0 = Release|Any CPU
+		{DBEC8977-3B23-48A0-B249-389C95BFFF2C}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{DBEC8977-3B23-48A0-B249-389C95BFFF2C}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{DBEC8977-3B23-48A0-B249-389C95BFFF2C}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{DBEC8977-3B23-48A0-B249-389C95BFFF2C}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
