@@ -196,7 +196,7 @@ namespace Converter
 
 			string finallCode = GetResultProgram();
 
-			Console.WriteLine(finallCode);
+			cSharpFile.Write(finallCode);
 
 			pythonFile.Close();
 			cSharpFile.Close();
