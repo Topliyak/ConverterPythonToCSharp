@@ -74,15 +74,7 @@ namespace Converter
 
 			string result = string.Empty;
 
-			if (hasOwnVariables && variables.Count != 0)
-			{
-				foreach(string variable in variables)
-				{
-					result += spacesForCodeLine + $"dynamic {variable};\n";
-				}
-
-				result += "\n";
-			}
+			PutVariablesToCode(ref result, spacesForCodeLine);
 
 			foreach (string codeLine in _resultWithWhiteSpaces)
 			{
@@ -114,6 +106,101 @@ namespace Converter
 		public void AddCode(string newCode)
 		{
 			code += newCode;
+		}
+
+		private void PutVariablesToCode(ref string code, string spaces)
+		{
+			if (hasOwnVariables == false)
+			{
+				return;
+			}
+
+			DeleteSameVariables();
+			ProcessVariablesWithThis();
+
+			foreach (string variable in variables)
+			{
+				code += spaces + $"dynamic {variable};\n";
+			}
+
+			if (variables.Count > 0)
+			{
+				code += "\n";
+			}
+		}
+
+		private void DeleteSameVariables()
+		{
+			if (variables.Count < 2)
+			{
+				return;
+			}
+
+			List<int> indexesWhichMustBeDeleted = new List<int>();
+
+			for (int i = 1; i < variables.Count; i++)
+			{
+				for (int j = 0; j < i; j++)
+				{
+					if (variables[i] == variables[j] && indexesWhichMustBeDeleted.Contains(j) == false)
+					{
+						indexesWhichMustBeDeleted.Add(j);
+					}
+				}
+			}
+
+			for (int i = indexesWhichMustBeDeleted.Count - 1; i >= 0; i--)
+			{
+				int index = indexesWhichMustBeDeleted[i];
+				variables.RemoveAt(index);
+			}
+		}
+
+		private void ProcessVariablesWithThis()
+		{
+			for (int i = variables.Count - 1; i >= 0; i--)
+			{
+				if (IsLocalVariable(variables[i]))
+				{
+					continue;
+				}
+
+				if (constructionType != ConstructionType.Class)
+				{
+					parentBody.variables.Add(variables[i]);
+					variables.RemoveAt(i);
+				}
+				else
+				{
+					string variableWithoutThis = GetVariableWithoutThis(variables[i]);
+					variables.Add(variableWithoutThis);
+					variables.RemoveAt(i);
+				}
+			}
+		}
+
+		private static bool IsLocalVariable(in string variable)
+		{
+			string[] varParts = variable.Split('.');
+
+			if (varParts[0] == "this")
+			{
+				return false;
+			}
+
+			return true;
+		}
+
+		private static string GetVariableWithoutThis(string variable)
+		{
+			string[] varParts = variable.Split('.');
+
+			string result = string.Empty;
+
+			for (int i = 1; i < varParts.Length; i++)
+				result += varParts[i];
+
+			return result;
 		}
 	}
 }

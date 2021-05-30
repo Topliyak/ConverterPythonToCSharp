@@ -25,6 +25,8 @@ namespace Converter
 		private static int minSpacesAtStartLine = 4;
 		private static Stack<Body> bodyStack = new Stack<Body>();
 
+		private static bool isConstructionInitialization;
+
 		private static List<string> classes = new List<string>();
 		private static List<string> functions = new List<string>();
 
@@ -39,8 +41,8 @@ namespace Converter
 			"System.Collections.Generic",
 		};
 
-		private ConstructionType typeOfLastConstruction;
-		private string nameOfLastConstruction;
+		private static ConstructionType typeOfLastConstruction;
+		private static string nameOfLastConstruction;
 
 		private static Dictionary<ConstructionType, List<string>> ConstructionTypesAndTheirKeywords = new Dictionary<ConstructionType, List<string>>
 		{
@@ -64,8 +66,8 @@ namespace Converter
 			{"self", "this" },
 		};
 
-		private delegate string ProcessAct(string left, string right, string act, in List<string> variables);
-		private delegate string ProcessKeyword(string left, string right, in List<string> variables);
+		private delegate string ProcessAct(in string left, in string right, in string act, in List<string> variables);
+		private delegate string ProcessKeyword(in string left, in string right, in List<string> variables);
 		private delegate string GetConstructionName(in string line);
 
 		private static List<char> whiteSpaces = new List<char> { ' ', '\n', '\t', };
@@ -81,7 +83,7 @@ namespace Converter
 									new string[] { "**" },
 								  };
 
-		private static Dictionary<string, ProcessAct> functionsWhichProcessArithmeticAndLogicalActs = new Dictionary<string, ProcessAct>
+		private static Dictionary<string, ProcessAct> actsAndProcessFunctionsPairs = new Dictionary<string, ProcessAct>
 		{
 			{"=", Assignment },
 			{"+=", ActWithAssignment },
@@ -110,7 +112,7 @@ namespace Converter
 
 		private static string[] cSharpKeywordsWithWhichLineMustntBeWrited = { "if", "for", "while", "class", "def" };
 
-		private static Dictionary<string, ProcessKeyword> functionsWhichProcessKeywords = new Dictionary<string, ProcessKeyword>
+		private static Dictionary<string, ProcessKeyword> keywordAndProcessFunctionsPairs = new Dictionary<string, ProcessKeyword>
 		{
 			{"class", ProcessClass },
 			{"def", ProcessDef },
@@ -139,8 +141,8 @@ namespace Converter
 			line = ChangePythonKeywordsToCSharpKeywords(line);
 			line = ProcessKeywords(line);
 			line = ProcessArithmeticAndLogicalActs(line);
-			line = ProcessDots(line);
 			line = ProcessFunctionCalling(line);
+			line = ProcessDots(line);
 			line = ProcessSquareBrackets(line);
 			line = ProcessAroundBrackets(line);
 
@@ -365,7 +367,7 @@ namespace Converter
 			int indexOfKeywordInLine = -1;
 			string keyword = string.Empty;
 
-			foreach (string currentKeyword in functionsWhichProcessKeywords.Keys)
+			foreach (string currentKeyword in keywordAndProcessFunctionsPairs.Keys)
 			{
 				int[] _intArray = FindIndexOfActStartIgnoringBrackets(line, currentKeyword);
 				int indexOfCurrentKeyword = (_intArray.Length == 0) ? -1 : _intArray[_intArray.Length - 1];
@@ -402,7 +404,7 @@ namespace Converter
 			left = left.Trim();
 			right = right.Trim();
 
-			return functionsWhichProcessKeywords[keyword](ProcessLine(left), ProcessLine(right), bodyStack.Get().variables);
+			return keywordAndProcessFunctionsPairs[keyword](ProcessLine(left), ProcessLine(right), bodyStack.Get().variables);
 		}
 
 		private static string ProcessAroundBrackets(in string line)
@@ -656,7 +658,7 @@ namespace Converter
 				leftPart = leftPart.Trim();
 				rightPart = rightPart.Trim();
 
-				return functionsWhichProcessArithmeticAndLogicalActs[actFromCurrentGroup](ProcessLine(leftPart), ProcessLine(rightPart),
+				return actsAndProcessFunctionsPairs[actFromCurrentGroup](ProcessLine(leftPart), ProcessLine(rightPart),
 																				actFromCurrentGroup, in bodyStack.Get().variables);
 			}
 
@@ -980,7 +982,54 @@ namespace Converter
 
 		private static string ProcessDots(in string line)
 		{
-			return line;
+			foreach (string keyword in keywordAndProcessFunctionsPairs.Keys)
+			{
+				if (FindIndexOfActStartIgnoringBrackets(line, keyword).Length > 0)
+				{
+					return line;
+				}
+			}
+
+			foreach(string act in actsAndProcessFunctionsPairs.Keys)
+			{
+				if (FindIndexOfActStartIgnoringBrackets(line, act).Length > 0)
+				{
+					return line;
+				}
+			}
+
+			List<string> subLines = SplitIgnoringBrackets(line, '.');
+
+			if (subLines.Count < 2)
+			{
+				return line;
+			}
+
+			return ProcessLinesSeparatedByDod(subLines);
+		}
+
+		private static string ProcessLinesSeparatedByDod(in List<string> subLines)
+		{
+			string result = string.Empty;
+
+			for (int i = 0; i < subLines.Count; i++)
+			{
+				if (i == 0)
+				{
+					result += ProcessLine(subLines[i]);
+				}
+				else
+				{
+					result += subLines[i];
+				}
+
+				if (i != subLines.Count - 1)
+				{
+					result += ".";
+				}
+			}
+
+			return result;
 		}
 
 		private static string ProcessFunctionCalling(in string line)
@@ -995,6 +1044,11 @@ namespace Converter
 			}
 
 			string functionName = line.Substring(0, line.Length - 2);
+
+			if (functionName == nameOfLastConstruction) // Function was initializated, it wasn't called
+			{
+				return line;
+			}
 
 			if (CheckDoesWordHaveSpecialSymbol(functionName))
 			{
@@ -1035,10 +1089,10 @@ namespace Converter
 				}
 			}
 
-			return result;
+			return "(" + result + ")";
 		}
 
-		private static string ProcessDef(string _a, string line, in List<string> _b)
+		private static string ProcessDef(in string _a, in string line, in List<string> _b)
 		{
 			List<char> lineAsList = new List<char>(line.Trim().ToCharArray());
 			string functionName = GetFunctionName(line);
@@ -1048,20 +1102,25 @@ namespace Converter
 				lineAsList.RemoveAt(0);
 			}
 
-			line = StringFromCharList(lineAsList).Trim();
+			string _duplicateLine = StringFromCharList(lineAsList).Trim();
 
-			string parameters = GetCodeFromBrackets(line);
-			parameters = "(" + CreateFunctionParameters(parameters) + ")";
+			string parameters = GetCodeFromBrackets(_duplicateLine);
+			parameters = CreateFunctionParameters(parameters);
 
 			if (functionName == "__init__")
 			{
 				return "public " + bodyStack.Get().name + parameters;
 			}
 
+			if (bodyStack.Get() == entranceFunctionBody)
+			{
+				return "public static dynamic " + functionName + parameters;
+			}
+
 			return "public dynamic " + functionName + parameters;
 		}
 
-		private static string ProcessClass(string _a, string line, in List<string> _b)
+		private static string ProcessClass(in string _a, in string line, in List<string> _b)
 		{
 			List<char> lineAsList = new List<char>(line.Trim().ToCharArray());
 			
@@ -1082,7 +1141,7 @@ namespace Converter
 			return "public class " + className + ": " + parentClassName;
 		}
 
-		private static string ProcessIn(string left, string right, in List<string> variables)
+		private static string ProcessIn(in string left, in string right, in List<string> variables)
 		{
 			if (left.Split(' ').Length > 1)
 			{
@@ -1095,7 +1154,7 @@ namespace Converter
 			return $"{left} in {right}";
 		}
 
-		private static string ProcessIf(string left, string right, in List<string> _)
+		private static string ProcessIf(in string left, in string right, in List<string> _)
 		{
 			if (FindIndexOfActStartIgnoringBrackets(left, "in").Length != 0)
 			{
@@ -1110,7 +1169,7 @@ namespace Converter
 			return $"{left} where ({right})";
 		}
 
-		private static string ProcessFor(string left, string right, in List<string> _)
+		private static string ProcessFor(in string left, in string right, in List<string> _)
 		{
 			if (left.Trim() != string.Empty)
 			{
@@ -1142,12 +1201,12 @@ namespace Converter
 			return $"foreach ({right})";
 		}
 
-		private static string ProcessWhile(string left, string right, in List<string> _)
+		private static string ProcessWhile(in string left, in string right, in List<string> _)
 		{
 			return $"while ({right})";
 		}
 
-		private static string ActWithAssignment(string left, string right, string actWithAssignment, in List<string> variables)
+		private static string ActWithAssignment(in string left, in string right, in string actWithAssignment, in List<string> variables)
 		{
 			string actWithoutAssignment = string.Empty;
 
@@ -1178,11 +1237,11 @@ namespace Converter
 				}
 			}
 
-			return Assignment(left, functionsWhichProcessArithmeticAndLogicalActs[actWithoutAssignment](left, right, actWithoutAssignment, variables),
+			return Assignment(left, actsAndProcessFunctionsPairs[actWithoutAssignment](left, right, actWithoutAssignment, variables),
 																								actWithoutAssignment, variables);
 		}
 
-		private static string Assignment(string left, string right, string _, in List<string> variables)
+		private static string Assignment(in string left, in string right, in string _, in List<string> variables)
 		{
 			if (!variables.Contains(left))
 			{
@@ -1192,37 +1251,37 @@ namespace Converter
 			return $"{left} = {right}";
 		}
 
-		private static string Conjuction(string left, string right, string _, in List<string> __)
+		private static string Conjuction(in string left, in string right, in string _, in List<string> __)
 		{
 			return $"{left} && {right}";
 		}
 
-		private static string Disjuction(string left, string right, string _, in List<string> __)
+		private static string Disjuction(in string left, in string right, in string _, in List<string> __)
 		{
 			return $"{left} || {right}";
 		}
 
-		private static string Inversion(string _, string right, string __, in List<string> ___)
+		private static string Inversion(in string _, in string right, in string __, in List<string> ___)
 		{
 			return $"!{right}";
 		}
 
-		private static string Div(string left, string right, string _a, in List<string> _b)
+		private static string Div(in string left, in string right, in string _a, in List<string> _b)
 		{
 			return $"PythonMethods.Div({left}, {right})";
 		}
 
-		private static string Mod(string left, string right, string _a, in List<string> _b)
+		private static string Mod(in string left, in string right, in string _a, in List<string> _b)
 		{
 			return $"PythonMethods.Mod({left}, {right})";
 		}
 
-		private static string Pow(string left, string right, string _a, in List<string> _b)
+		private static string Pow(in string left, in string right, in string _a, in List<string> _b)
 		{
 			return $"Math.Pow({left}, {right})";
 		}
 
-		private static string JoinPartsByActWhichSameInPythonAndCS(string left, string right, string act, in List<string> _)
+		private static string JoinPartsByActWhichSameInPythonAndCS(in string left, in string right, in string act, in List<string> _)
 		{
 			if (left.Trim() == string.Empty)
 			{
