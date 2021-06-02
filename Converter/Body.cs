@@ -12,6 +12,7 @@ namespace Converter
 		public ConstructionType constructionType;
 		public Body parentBody;
 		public List<string> variables = new List<string>();
+		public List<string> variablesInHeader = new List<string>();
 		private bool hasOwnVariables = true;
 		public int howManySpaces;
 		private string code = string.Empty;
@@ -62,12 +63,12 @@ namespace Converter
 
 			List<string> _resultWithWhiteSpaces = new List<string>(this.code.Split('\n'));
 
-			while (_resultWithWhiteSpaces[0].Trim() == string.Empty)
+			while (_resultWithWhiteSpaces.Count > 0 && _resultWithWhiteSpaces[0].Trim() == string.Empty)
 			{
 				_resultWithWhiteSpaces.RemoveAt(0);
 			}
 
-			while (_resultWithWhiteSpaces[_resultWithWhiteSpaces.Count - 1].Trim() == string.Empty)
+			while (_resultWithWhiteSpaces.Count > 0 && _resultWithWhiteSpaces[_resultWithWhiteSpaces.Count - 1].Trim() == string.Empty)
 			{
 				_resultWithWhiteSpaces.RemoveAt(_resultWithWhiteSpaces.Count - 1);
 			}
