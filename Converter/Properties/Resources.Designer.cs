@@ -64,12 +64,12 @@ namespace Converter.Properties {
         ///   Looks up a localized string similar to class PythonMethods
         ///{
         ///	private static Dictionary&lt;char, int&gt; SymbolNumberPairs = new Dictionary&lt;char, int&gt;
-        ///		{
-        ///			{&apos;0&apos;, 0 },
-        ///			{&apos;1&apos;, 1 }, {&apos;2&apos;, 2 }, {&apos;3&apos;, 3 },
-        ///			{&apos;4&apos;, 4 }, {&apos;5&apos;, 5 }, {&apos;6&apos;, 6 },
-        ///			{&apos;7&apos;, 7 }, {&apos;8&apos;, 8 }, {&apos;9&apos;, 9 },
-        ///		};
+        ///	{
+        ///		{&apos;0&apos;, 0 },
+        ///		{&apos;1&apos;, 1 }, {&apos;2&apos;, 2 }, {&apos;3&apos;, 3 },
+        ///		{&apos;4&apos;, 4 }, {&apos;5&apos;, 5 }, {&apos;6&apos;, 6 },
+        ///		{&apos;7&apos;, 7 }, {&apos;8&apos;, 8 }, {&apos;9&apos;, 9 },
+        ///	};
         ///
         ///	public static IEnumerable&lt;dynamic&gt; Range(dynamic start, dynamic stop, dynamic step)
         ///	{
@@ -83,7 +83,7 @@ namespace Converter.Properties {
         ///		}
         ///	}
         ///
-        ///	public static IEnumerable&lt;dynamic&gt; [rest of string was truncated]&quot;;.
+        ///	public static IEnumerable&lt;dynamic&gt; Range [rest of string was truncated]&quot;;.
         /// </summary>
         internal static string PythonMethods {
             get {

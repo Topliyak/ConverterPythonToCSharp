@@ -1,12 +1,12 @@
 ﻿class PythonMethods
 {
 	private static Dictionary<char, int> SymbolNumberPairs = new Dictionary<char, int>
-		{
-			{'0', 0 },
-			{'1', 1 }, {'2', 2 }, {'3', 3 },
-			{'4', 4 }, {'5', 5 }, {'6', 6 },
-			{'7', 7 }, {'8', 8 }, {'9', 9 },
-		};
+	{
+		{'0', 0 },
+		{'1', 1 }, {'2', 2 }, {'3', 3 },
+		{'4', 4 }, {'5', 5 }, {'6', 6 },
+		{'7', 7 }, {'8', 8 }, {'9', 9 },
+	};
 
 	public static IEnumerable<dynamic> Range(dynamic start, dynamic stop, dynamic step)
 	{
@@ -38,51 +38,12 @@
 
 	public static int Int(dynamic str)
 	{
-		if (str.Length == 0)
-		{
-			throw new Exception("Try get integer from empty string");
-		}
-
-		int result = 0;
-
-		List<char> strAsList = new List<char>(str.ToCharArray());
-		int tenDegree = 0;
-
-		while (strAsList.Count > 0)
-		{
-			char lastSymbol = strAsList[strAsList.Count - 1];
-			result += SymbolNumberPairs[lastSymbol] * Pow(10, tenDegree);
-
-			tenDegree += 1;
-			strAsList.RemoveAt(strAsList.Count - 1);
-		}
-
-		return result;
+		return Convert.ToInt32(str);
 	}
 
 	public static float Float(dynamic str)
 	{
-		if (str.Length == 0)
-		{
-			throw new Exception("Try get float from empty string");
-		}
-
-		string[] strParts = str.Split('.', ',');
-
-		string _strWholePart = strParts[0];
-		string _strNonWholePart = strParts.Length > 1 ? strParts[1] : string.Empty;
-
-		float result = 0;
-
-		result += Convert.ToInt32(_strWholePart);
-
-		if (_strNonWholePart != string.Empty)
-		{
-			_strNonWholePart = "0," + _strNonWholePart;
-			result += float.Parse(_strNonWholePart);
-		}
-
-		return result;
+		return float.Parse(str);
 	}
 
 	public static string Str(dynamic x)
