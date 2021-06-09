@@ -303,59 +303,47 @@ namespace Converter
 
 		private bool CheckAllBracketsClosed(in string line)
 		{
-			int aroundBracketsOpened = 0;
-			int squareBracketsOpened = 0;
-			int figureBracketsOpened = 0;
+			Stack<int> openBracketsIndexesStack = new Stack<int>();
 
-			foreach (char letter in line)
+			bool insideString = false;
+			bool insideChar = false;
+
+			for (int i = 0; i < line.Length; i++)
 			{
-				switch (letter)
+				char letter = line[i];
+
+				if (letter == '\"' && !insideString && !insideChar)
 				{
-					case '(':
-						{
-							aroundBracketsOpened++;
-							break;
-						}
-
-					case ')':
-						{
-							aroundBracketsOpened--;
-							break;
-						}
-
-					case '[':
-						{
-							squareBracketsOpened++;
-							break;
-						}
-
-					case ']':
-						{
-							squareBracketsOpened--;
-							break;
-						}
-
-					case '{':
-						{
-							figureBracketsOpened++;
-							break;
-						}
-
-					case '}':
-						{
-							figureBracketsOpened--;
-							break;
-						}
-
-					default:
-						break;
+					insideString = true;
+					openBracketsIndexesStack.Add(i);
+				}
+				else if (letter == '\"' && insideString && (i - 1 >= 0 && line[i - 1] != '\\' || i - 1 < 0))
+				{
+					insideString = false;
+					openBracketsIndexesStack.Delete();
+				}
+				else if (letter == '\'' && !insideString && !insideChar)
+				{
+					insideChar = true;
+					openBracketsIndexesStack.Add(i);
+				}
+				else if (letter == '\'' && insideChar && (i - 1 >= 0 && line[i - 1] != '\\' || i - 1 < 0))
+				{
+					insideChar = false;
+					openBracketsIndexesStack.Delete();
+				}
+				else if (!insideChar && !insideString && OpenCloseBracketsPairs.ContainsKey(letter))
+				{
+					openBracketsIndexesStack.Add(i);
+				}
+				else if (!insideChar && !insideString && OpenCloseBracketsPairs.ContainsValue(letter))
+				{
+					openBracketsIndexesStack.Delete();
 				}
 			}
 
-			if (aroundBracketsOpened == 0 && squareBracketsOpened == 0 && figureBracketsOpened == 0)
-			{
+			if (openBracketsIndexesStack.Count == 0)
 				return true;
-			}
 
 			return false;
 		}

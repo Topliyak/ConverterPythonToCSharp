@@ -35,6 +35,7 @@
 			this.ConvertButton = new System.Windows.Forms.Button();
 			this.fileBrowserDialog = new System.Windows.Forms.OpenFileDialog();
 			this.folderBrowserDialog = new System.Windows.Forms.FolderBrowserDialog();
+			this.MessageAboutConvertingLabel = new System.Windows.Forms.Label();
 			this.SuspendLayout();
 			// 
 			// PythonModuleField
@@ -81,7 +82,7 @@
 			this.CSharpProjectPathField.Size = new System.Drawing.Size(424, 33);
 			this.CSharpProjectPathField.TabIndex = 2;
 			this.CSharpProjectPathField.Text = "Path where C# project must be saved";
-			this.CSharpProjectPathField.TextChanged += new System.EventHandler(this.CSharpProject_Changed);
+			this.CSharpProjectPathField.TextChanged += new System.EventHandler(this.CSharpProjectPath_Changed);
 			// 
 			// ConvertButton
 			// 
@@ -99,11 +100,22 @@
 			// 
 			this.fileBrowserDialog.FileName = "openFileDialog1";
 			// 
+			// MessageAboutConvertingLabel
+			// 
+			this.MessageAboutConvertingLabel.AutoSize = true;
+			this.MessageAboutConvertingLabel.Font = new System.Drawing.Font("Microsoft Sans Serif", 14F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(204)));
+			this.MessageAboutConvertingLabel.Location = new System.Drawing.Point(116, 53);
+			this.MessageAboutConvertingLabel.Name = "MessageAboutConvertingLabel";
+			this.MessageAboutConvertingLabel.Size = new System.Drawing.Size(237, 29);
+			this.MessageAboutConvertingLabel.TabIndex = 5;
+			this.MessageAboutConvertingLabel.Text = "Convert Python to C#";
+			// 
 			// MainMenu
 			// 
 			this.AutoScaleDimensions = new System.Drawing.SizeF(8F, 16F);
 			this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
 			this.ClientSize = new System.Drawing.Size(800, 450);
+			this.Controls.Add(this.MessageAboutConvertingLabel);
 			this.Controls.Add(this.ConvertButton);
 			this.Controls.Add(this.button2);
 			this.Controls.Add(this.CSharpProjectPathField);
@@ -125,6 +137,7 @@
 		private System.Windows.Forms.Button ConvertButton;
 		private System.Windows.Forms.OpenFileDialog fileBrowserDialog;
 		private System.Windows.Forms.FolderBrowserDialog folderBrowserDialog;
+		private System.Windows.Forms.Label MessageAboutConvertingLabel;
 	}
 }
 

@@ -17,9 +17,6 @@ namespace ConverterApplication
 		public MainMenu()
 		{
 			InitializeComponent();
-
-			PythonModuleField.Text = "C:\\Users\\amirm\\Projects\\python\\tasks\\a.py";
-			CSharpProjectPathField.Text = "C:\\Users\\amirm\\Desktop";
 		}
 
 		private void PythonModulePath_Changed(object sender, EventArgs e)
@@ -27,14 +24,15 @@ namespace ConverterApplication
 			ConverterLaunchData.EntrancePythonModulePath = PythonModuleField.Text;
 		}
 
-		private void CSharpProject_Changed(object sender, EventArgs e)
+		private void CSharpProjectPath_Changed(object sender, EventArgs e)
 		{
 			ConverterLaunchData.WhereCSharpProjectMustBeSavedPath = CSharpProjectPathField.Text;
 		}
 
 		private void ConverterButton_Clicked(object sender, EventArgs e)
 		{
-			ConverterLaunchData.TryStartConverting();
+			string convertingTryResult = ConverterLaunchData.TryStartConverting();
+			MessageAboutConvertingLabel.Text = convertingTryResult;
 		}
 
 		private void ChooseDirectoryButton1_Click(object sender, EventArgs e)

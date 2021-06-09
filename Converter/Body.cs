@@ -119,9 +119,11 @@ namespace Converter
 			DeleteSameVariables();
 			ProcessVariablesWithThis();
 
+			string modifiers = constructionType == ConstructionType.Class ? "public " : string.Empty;
+
 			foreach (string variable in variables)
 			{
-				code += spaces + $"dynamic {variable};\n";
+				code += spaces + modifiers + $"dynamic {variable};\n";
 			}
 
 			if (variables.Count > 0)

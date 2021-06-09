@@ -41,7 +41,7 @@ namespace ConverterApplication
 
 			Convert(EntrancePythonModulePath, WhereCSharpProjectMustBeSavedPath);
 
-			return string.Empty;
+			return "Success";
 		}
 
 		private void Convert(string pythonModulePath, string cSharpProjectPath)
